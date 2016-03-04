@@ -130,7 +130,7 @@ map ::
   (a -> b)
   -> List a
   -> List b
-map f Nil = Nil
+map _ Nil = Nil
 map f (x :. xs) = (f x :. map f xs)
 
 -- | Return elements satisfying the given predicate.
@@ -147,10 +147,10 @@ filter ::
   (a -> Bool)
   -> List a
   -> List a
-filter pred Nil = Nil
-filter pred (x :. xs)
-  | pred x = x :. filter pred xs
-  | otherwise = filter pred xs
+filter _ Nil = Nil
+filter p (x :. xs)
+  | p x = x :. filter p xs
+  | otherwise = filter p xs
 
 -- | Append two lists to a new list.
 --
@@ -242,7 +242,8 @@ seqOptional ::
 seqOptional Nil = P.return Nil
 seqOptional (Empty :. _ ) = Empty
 seqOptional (Full x :. xs) = seqOptional xs P.>>= (\y -> P.return (x :. y))
-
+-- seqOptional =
+--   foldRight (twiceOptional (:.)) (Full Nil)
 -- NOT EASY. Prelude의 sequence, mapM등을 봐도 이해가 쉽지 않았다. - cwyang
 
 -- | Find the first element in the list matching the predicate.
@@ -265,7 +266,7 @@ find ::
   (a -> Bool)
   -> List a
   -> Optional a
-find f Nil = Empty
+find _ Nil = Empty
 find f (x :. xs)
   | f x       = Full x
   | otherwise = find f xs
@@ -288,8 +289,8 @@ lengthGT4 ::
   -> Bool
 lengthGT4 = go 0
   where go acc _ | acc >= 4 = True
-        go acc Nil = False
-        go acc (x:.xs) = go (acc+1) xs
+        go _ Nil = False
+        go acc (_:.xs) = go (acc+1) xs
 
 -- | Reverse a list.
 --
