@@ -369,7 +369,7 @@ filtering ::
   (a -> f Bool)
   -> List a
   -> f (List a)
-filtering f Nil = pure Nil
+filtering _ Nil = pure Nil
 filtering f (h:. t) = lift2 (\b -> if b then (h:.) else id) (f h) (filtering f t)
 -- filtering p = foldRight (\x -> lift2 (\y -> if y then (x :.) else id) (p x)) (pure Nil)
 
