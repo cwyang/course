@@ -62,7 +62,7 @@ the contents of c
 main ::
   IO ()
 main =
-  error "todo: Course.FileIO#main"
+  run =<< (headOr "ERR") <$> getArgs
 
 type FilePath =
   Chars
@@ -71,31 +71,39 @@ type FilePath =
 run ::
   Chars
   -> IO ()
-run =
-  error "todo: Course.FileIO#run"
+run file = do
+  content <- readFile file
+  printFiles =<< getFiles (lines content)
 
 getFiles ::
   List FilePath
   -> IO (List (FilePath, Chars))
 getFiles =
-  error "todo: Course.FileIO#getFiles"
+  sequence . map getFile
+--  sequence . (<$>) getFile
 
 getFile ::
   FilePath
   -> IO (FilePath, Chars)
-getFile =
-  error "todo: Course.FileIO#getFile"
+getFile file = do
+  content <- readFile file
+  return (file, content)
+--  lift2 (<$>) (,) readFile
+-- HARD
 
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
 printFiles =
-  error "todo: Course.FileIO#printFiles"
+  foldRight (\(path, content) acc -> printFile path content >> acc) (return ())
+--  void . sequence . map (\(path, content) -> printFile path content)
+--  void . sequence . (<$>) (uncurry printFile)
 
 printFile ::
   FilePath
   -> Chars
   -> IO ()
-printFile =
-  error "todo: Course.FileIO#printFile"
+printFile path content = do
+  putStrLn ("============ " ++ path)
+  putStrLn content
 

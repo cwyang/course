@@ -39,8 +39,8 @@ instance Functor (State s) where
     (a -> b)
     -> State s a
     -> State s b
-  (<$>) =
-      error "todo: Course.State#(<$>)"
+  f <$> x =
+    State $ \s -> let (a, s') = runState x s in (f a, s')
 
 -- | Implement the `Applicative` instance for `State s`.
 --
@@ -57,14 +57,16 @@ instance Applicative (State s) where
   pure ::
     a
     -> State s a
-  pure =
-    error "todo: Course.State pure#instance (State s)"
+  pure x =
+    State $ \s -> (x, s)
   (<*>) ::
     State s (a -> b)
     -> State s a
     -> State s b 
-  (<*>) =
-    error "todo: Course.State (<*>)#instance (State s)"
+  f <*> x =
+    State $ \s -> let (g, s') = runState f s
+                      (a, s'') = runState x s'
+                  in (g a, s'')
 
 -- | Implement the `Bind` instance for `State s`.
 --
@@ -78,8 +80,9 @@ instance Monad (State s) where
     (a -> State s b)
     -> State s a
     -> State s b
-  (=<<) =
-    error "todo: Course.State (=<<)#instance (State s)"
+  f =<< State a = State $ \s ->
+    let (a', s') = a s
+    in runState (f a') s'
 
 -- | Run the `State` seeded with `s` and retrieve the resulting state.
 --
@@ -88,8 +91,7 @@ exec ::
   State s a
   -> s
   -> s
-exec =
-  error "todo: Course.State#exec"
+exec (State f) s = snd $ f s
 
 -- | Run the `State` seeded with `s` and retrieve the resulting value.
 --
@@ -98,8 +100,7 @@ eval ::
   State s a
   -> s
   -> a
-eval =
-  error "todo: Course.State#eval"
+eval (State f) s = fst $ f s
 
 -- | A `State` where the state also distributes into the produced value.
 --
@@ -107,8 +108,7 @@ eval =
 -- (0,0)
 get ::
   State s s
-get =
-  error "todo: Course.State#get"
+get = State $ \s -> (s, s)
 
 -- | A `State` where the resulting state is seeded with the given value.
 --
@@ -118,7 +118,8 @@ put ::
   s
   -> State s ()
 put =
-  error "todo: Course.State#put"
+  \s -> State $ \_ -> ((), s)
+-- put = State . const . (,) ()
 
 -- | Find the first element in a `List` that satisfies a given predicate.
 -- It is possible that no element is found, hence an `Optional` result.
@@ -139,8 +140,10 @@ findM ::
   (a -> f Bool)
   -> List a
   -> f (Optional a)
-findM =
-  error "todo: Course.State#findM"
+findM _ Nil = return Empty
+findM p (x:.xs) = p x >>= (\b ->
+                            if b then return (Full x)
+                            else findM p xs)
 
 -- | Find the first element in a `List` that repeats.
 -- It is possible that no element repeats, hence an `Optional` result.
@@ -149,25 +152,43 @@ findM =
 --
 -- prop> case firstRepeat xs of Empty -> let xs' = hlist xs in nub xs' == xs'; Full x -> length (filter (== x) xs) > 1
 -- prop> case firstRepeat xs of Empty -> True; Full x -> let (l, (rx :. rs)) = span (/= x) xs in let (l2, r2) = span (/= x) rs in let l3 = hlist (l ++ (rx :. Nil) ++ l2) in nub l3 == l3
+
 firstRepeat ::
   Ord a =>
   List a
   -> Optional a
-firstRepeat =
-  error "todo: Course.State#firstRepeat"
+  
+-- 감도 못잡음. 답을 보았다.
+{-
+firstRepeat = flip eval S.empty . findM (\a -> State $ \s ->
+                                          case S.lookupIndex a s of
+                                            P.Nothing -> (False,S.insert a s)
+                                            _         -> (True,s)
+                                        )
+-}
+firstRepeat = listWithState findM S.member
 
--- | Remove all duplicate elements in a `List`.
--- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
---
--- prop> firstRepeat (distinct xs) == Empty
---
--- prop> distinct xs == distinct (flatMap (\x -> x :. x :. Nil) xs)
+--- | Remove all duplicate elements in a `List`.
+--- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
+---
+--- prop> firstRepeat (distinct xs) == Empty
+---
+--- prop> distinct xs == distinct (flatMap (\x -> x :. x :. Nil) xs)
+
+listWithState :: 
+  (Ord a) =>
+  ((a -> State (S.Set a) Bool) -> List a -> State (S.Set a) (f a))
+  -> (a -> S.Set a -> Bool)
+  -> List a
+  -> f a
+--listWithState op tst = flip eval S.empty . op (\a -> State $ \s -> (tst a s, S.insert a s))
+listWithState op tst = flip eval S.empty . op (State . lift2 (lift2 (,)) tst S.insert)
 distinct ::
   Ord a =>
   List a
   -> List a
 distinct =
-  error "todo: Course.State#distinct"
+  listWithState filtering S.notMember
 
 -- | A happy number is a positive integer, where the sum of the square of its digits eventually reaches 1 after repetition.
 -- In contrast, a sad number (not a happy number) is where the sum of the square of its digits never reaches 1
@@ -190,8 +211,9 @@ distinct =
 --
 -- >>> isHappy 44
 -- True
+
 isHappy ::
   Integer
   -> Bool
-isHappy =
-  error "todo: Course.State#isHappy"
+isHappy = contains 1 . firstRepeat . produce next
+  where next = toInteger . sum . map (join (*) . digitToInt) . show'
